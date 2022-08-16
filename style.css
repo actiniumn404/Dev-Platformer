@@ -1,0 +1,12 @@
+*, *::before, *::after{
+    box-sizing: border-box;
+}
+
+body{
+    display: flex;
+    background: black;
+    font-family: Arial, serif;
+    align-items: center;
+    justify-content: center;
+    height: max(800px, 90vh);
+}
