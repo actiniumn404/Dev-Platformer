@@ -247,7 +247,9 @@ let frame = (recursion = true) => {
         else if (!game.grounded){
             game.acceleration += game.accspeed
             game.playerY += game.acceleration
-            if (game.playerY >= 2000){
+            if (game.playerY >= 2000 || game.playerY <= -2000){
+                game.jumping = false
+                game.accspeed = Math.abs(game.accspeed)
                 game.death = 1
             }
         }
