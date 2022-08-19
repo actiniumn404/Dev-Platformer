@@ -324,6 +324,7 @@ let frame = (recursion = true) => {
         game.death = 0
         game.playerX = game.spawn[0]
         game.playerY = game.spawn[1]
+        game.acceleration = 0
     }
     ctx.stroke()
 
