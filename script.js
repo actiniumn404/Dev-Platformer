@@ -66,6 +66,26 @@ class IDE{
     collision(coordX, coordY){
         this.recieved = true
         game.elements.splice(game.elements.indexOf(this), 1)
+        game.IDEgotten += 1
+    }
+}
+
+class Water{
+    // Don't get water on your computer!!!
+    constructor(x, y) {
+        this.x = x
+        this.y = y
+        this.cX = game.blockSize * x + game.blockSize / 2 - 30
+        this.cY = game.blockSize * y + game.blockSize / 2 - 30
+    }
+    draw(){
+        if (this.cX < game.playerX - 4 * game.blockSize || game.playerX + 9 * game.blockSize < this.cX){
+            return;
+        }
+        ctx.drawImage(game.assets.water, this.cX - game.playerX + game.realPX, this.cY - game.playerY + game.realPY, 60, 60)
+    }
+    collision(x, y){
+        game.death = 1
     }
 }
 
@@ -94,10 +114,14 @@ let utils = {
                     case "p": // Player spawn
                         game.playerX = x * game.blockSize
                         game.playerY = y * game.blockSize
-                        game.grounded = level[y + 1][x] !== " " && Boolean(level[y - 1][x])
+                        game.spawn = [game.playerX, game.playerY]
                         break
                     case "i": // IDE
                         game.elements.push(new IDE(x, y))
+                        game.numIDEs += 1
+                        break
+                    case "w": // Water
+                        game.elements.push(new Water(x, y))
                         break
                 }
             }
@@ -154,12 +178,17 @@ let utils = {
         }
         return false
     },
+    randint: (min, max) => {
+        return Math.random() * (max - min) + min;
+    }
 }
 
 let game = {
     assets: {
         background: utils.image("assets/background.png"),
-        character: utils.image("assets/character.png")
+        character: utils.image("assets/character.png"),
+        IDE: utils.image("assets/IDE.webp"),
+        water: utils.image("assets/water.png")
     },
     colors: {
         block_border: "#02459e",
@@ -175,6 +204,8 @@ let game = {
     playerY: 0,
     realPX: 225,
     realPY: 300,
+    spawn: null,
+    death: 0,
     // Physics Weirdness
     speed: 15,
     acceleration: 0,
@@ -183,16 +214,18 @@ let game = {
     jumping: false,
     grounded: true,
     // Others
-    start: 0,
+    time: 0,
+    // Coins/IDEs/Apps
+    numIDEs: 0,
+    IDEgotten: 0
 }
 
 
 window.onload = function(){
-    game.start = Date.now()
     let main = setInterval(frame, 1/48 * 1000)
 }
 
-let frame = () => {
+let frame = (recursion = true) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.beginPath();
 
@@ -202,34 +235,29 @@ let frame = () => {
     ctx.globalAlpha = 1
 
     // Character
-    ctx.drawImage(game.assets.character, game.realPX, game.realPY, game.charSize, game.charSize)
-
-    keypress()
-
-    // Acceleration/Falling Down
-    game.grounded = utils.elementBottom() && !game.jumping
-    if (game.jumping && game.playerY <= game.jumpgoal){
-        game.accspeed = -1 * (game.accspeed + 2)
-        game.jumping = false
+    if (!game.death) {
+        ctx.drawImage(game.assets.character, game.realPX, game.realPY, game.charSize, game.charSize)
+        keypress()
+        // Acceleration/Falling Down
+        game.grounded = utils.elementBottom() && !game.jumping
+        if (game.jumping && game.playerY <= game.jumpgoal){
+            game.accspeed = -1 * (game.accspeed + 2)
+            game.jumping = false
+        }
+        else if (!game.grounded){
+            game.acceleration += game.accspeed
+            game.playerY += game.acceleration
+            if (game.playerY >= 2000){
+                game.death = 1
+            }
+        }
     }
-    else if (!game.grounded){
-        game.acceleration += game.accspeed
-        game.playerY += game.acceleration
-    }
-
-    // Time
-    ctx.fillStyle = "#ffffff"
-    ctx.textAlign = "right"
-    ctx.font = "30px Monospace";
-
-    let seconds = (Date.now() - game.start) / 1000
-    ctx.fillText(`${Math.floor(seconds / 60).toString().padStart(2, "0")}:${(seconds % 60).toFixed(1).padStart(4, 0)}`, canvas.width - 20, 40);
 
     // Game elements
     for (let element of game.elements){
         element.draw()
         let type = utils.intersectElement(element)
-        if (type){
+        if (type && !game.death){
             if (!game.grounded){
                 game.acceleration = 0
                 game.grounded = true
@@ -238,21 +266,70 @@ let frame = () => {
                     game.accspeed = -1 * (game.accspeed + 2)
                     game.jumping = false
                     game.grounded = false
-                    frame()
+                    if (recursion){
+                        frame(false)
+                    }
                     break
                 }
             }
             if (element.cY >= game.playerY){
                 // Bottom Collision
                 element.collision(game.playerX, element.cY - game.charSize)
-                frame()
+                if (recursion){
+                    frame(false)
+                }
             }
 
         }
     }
 
+    // Text/Stats
+    ctx.fillStyle = "#ffffff"
+    ctx.textAlign = "right"
+    ctx.font = "30px Monospace";
+
+    ctx.fillText(`${Math.floor(game.time / 60).toString().padStart(2, "0")}:${(game.time % 60).toFixed(1).padStart(4, 0)}`, canvas.width - 20, 40);
+
+    ctx.textAlign = "left"
+    ctx.drawImage(game.assets.IDE, 10, 10, 50, 50)
+    ctx.fillText(`${game.IDEgotten}/${game.numIDEs}`, 70, 40);
+
+    if (game.death){
+        ctx.globalAlpha = 0.3
+
+        ctx.beginPath()
+        ctx.fillStyle = "yellow"
+        ctx.arc(game.realPX + 25, game.realPY + 25, 40 * game.death, 0, 2 * Math.PI);
+        ctx.fill()
+        ctx.closePath();
+
+        ctx.beginPath()
+        ctx.fillStyle = "#ff3737"
+        ctx.arc(game.realPX + 25, game.realPY + 25, 30 * game.death, 0, 2 * Math.PI);
+        ctx.fill()
+        ctx.closePath();
+
+        ctx.beginPath()
+        ctx.fillStyle = "#ab0000"
+        ctx.arc(game.realPX + 25, game.realPY + 25, 20 * game.death, 0, 2 * Math.PI);
+        ctx.fill()
+        ctx.closePath();
+
+        game.death++
+
+        game.playerX = utils.randint(game.playerX - 20, game.playerX + 20)
+        game.playerY = utils.randint(game.playerY - 20, game.playerY + 20)
+    }
+    if (game.death === 48 * 2){ // 3 seconds at 48fps
+        game.death = 0
+        game.playerX = game.spawn[0]
+        game.playerY = game.spawn[1]
+    }
     ctx.stroke()
 
+    if (!game.death) {
+        game.time += 1 / 48
+    }
 }
 
 utils.buildLevel(levels[0])
