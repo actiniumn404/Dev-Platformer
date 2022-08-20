@@ -89,6 +89,39 @@ class Water{
     }
 }
 
+class Virus{
+    // Getting a computer virus is not very good
+    constructor(x, y, leftX, rightX) {
+        this.x = x
+        this.y = y
+        console.log(x, y, leftX, rightX)
+        this.leftX = game.blockSize * leftX + game.blockSize / 2 - 15
+        this.rightX = game.blockSize * rightX + game.blockSize / 2 - 15
+        this.cX = game.blockSize * x + game.blockSize / 2 - 15
+        this.cY = game.blockSize * y + game.blockSize - 30
+        this.goingLeft = true
+    }
+    draw(){
+        if (this.goingLeft){
+            if (this.cX > this.leftX){
+                this.cX -= game.speed / 3 * 2
+            }else{
+                this.goingLeft = false
+            }
+        }else{
+            if (this.cX < this.rightX){
+                this.cX += game.speed / 3 * 2
+            }else{
+                this.goingLeft = true
+            }
+        }
+        ctx.drawImage(game.assets.virus, this.cX - game.playerX + game.realPX, this.cY - game.playerY + game.realPY, 30, 30)
+    }
+    collision(x, y){
+        game.death = 1
+    }
+}
+
 let utils = {
     image: (src, width = null, height = null) => {
         let res;
@@ -100,12 +133,12 @@ let utils = {
         res.src = src;
         return res;
     },
-    buildLevel: (level) => {
+    buildLevel: (level, metadata) => {
         level = level.split("\n")
         game.elements = []
 
         for (let y = 0; y < level.length; y++){
-            for (let x = 0; x < 100; x++){
+            for (let x = 0; x < 300; x++){
                 switch (level[y][x]) {
                     case "b": // full block
                         game.elements.push(new Block(x, y))
@@ -123,6 +156,9 @@ let utils = {
                     case "w": // Water
                         game.elements.push(new Water(x, y))
                         break
+                    case "v": // Virus
+                        console.log(y, x)
+                        game.elements.push(new Virus(x, y, metadata[`(${y}, ${x})`][0], metadata[`(${y}, ${x})`][1]))
                 }
             }
         }
@@ -188,7 +224,8 @@ let game = {
         background: utils.image("assets/background.png"),
         character: utils.image("assets/character.png"),
         IDE: utils.image("assets/IDE.webp"),
-        water: utils.image("assets/water.png")
+        water: utils.image("assets/water.png"),
+        virus: utils.image("assets/virus.png"),
     },
     colors: {
         block_border: "#02459e",
@@ -335,7 +372,7 @@ let frame = (recursion = true) => {
     }
 }
 
-utils.buildLevel(levels[0])
+utils.buildLevel(levels[0].data, levels[0].metadata)
 
 let keylog = {}
 
